@@ -23,8 +23,7 @@ Now in order to get the wrapper up and running, you must create a python virtual
 
 then you must export the path to your pupil labs api:
 
-```export PYTHONPATH=/home/kysh/venv/pupil_labs/lib/python3.12/site-packages:$PYTHONPATH```
-
+```export PYTHONPATH=/path/to/virtual/environment/lib/python3.12/site-packages:$PYTHONPATH```
 ## Done 
 
 Now you can build one more time and then run the wrapper and see the published messages for the eye_img, scene_img, and gaze:
