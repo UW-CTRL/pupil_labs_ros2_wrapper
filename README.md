@@ -15,17 +15,20 @@ In order to run this wrapper you must clone the directory into your ros2 workspa
 ```colcon build```
 
 ## The Setup 
-Now in order to get the wrapper up and running, you must create a python virtual enviornment and then enter it.
+Now in order to get the wrapper up and running, you must create a python virtual enviornment and then enter it:
+
 ```python -m venv /path/to/virtual/environment```
 
 ```source path/to/virtual/environment/bin/activate```
 
-then you must export the path to your pupil labs api
+then you must export the path to your pupil labs api:
+
 ```export PYTHONPATH=/home/kysh/venv/pupil_labs/lib/python3.12/site-packages:$PYTHONPATH```
 
 ## Done 
 
-Now you can build one more time and then run the wrapper and see the published messages for the eye_img, scene_img, and gaze.
+Now you can build one more time and then run the wrapper and see the published messages for the eye_img, scene_img, and gaze:
+
 ```colcon build```
 
 ```ros2 run pupil_labs_wrapper wrapper.py```
