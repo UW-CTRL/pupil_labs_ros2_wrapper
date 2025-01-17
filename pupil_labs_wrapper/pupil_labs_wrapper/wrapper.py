@@ -1,13 +1,13 @@
 #!/home/kysh/venv/pupil_labs/bin/python
 
-import sys
-print(sys.version)
+# import sys
+# print(sys.version)
 
 import rclpy
 # import pupil_labs
 from rclpy.node import Node
 from pupil_labs.realtime_api.simple import discover_one_device
-from pupil_labs_wrapper.msg import GazeData
+from egocentric_msg.msg import GazeData
 from sensor_msgs.msg import Image
 
 def populate_image_message(pl_image_msg, timestamp):
@@ -17,12 +17,14 @@ def populate_image_message(pl_image_msg, timestamp):
     ros_img.height = pl_image_msg.bgr_pixels.shape[0]
     ros_img.width = pl_image_msg.bgr_pixels.shape[1]
     ros_img.data = pl_image_msg.bgr_pixels.tobytes()
+    # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
+    ros_img.encoding = "bgr8"  # or "rgb8" depending on your image format
     return ros_img
 
 def populate_sensor_message(pl_gaze_msg, timestamp):
     msg = GazeData()
-    msg.header.stamp.sec = timestamp.sec
-    msg.header.stamp.nanosec = timestamp.nanosec
+    # msg.header.stamp.sec = timestamp.sec
+    # msg.header.stamp.nanosec = timestamp.nanosec
     msg.x = pl_gaze_msg.x
     msg.y = pl_gaze_msg.y
     msg.worn = pl_gaze_msg.worn
@@ -41,6 +43,7 @@ def populate_sensor_message(pl_gaze_msg, timestamp):
     msg.optical_axis_right_y = pl_gaze_msg.optical_axis_right_y
     msg.optical_axis_right_z = pl_gaze_msg.optical_axis_right_z
     msg.timestamp_unix_seconds = pl_gaze_msg.timestamp_unix_seconds
+    # print(msg)
     return msg
 
 class PupilLabsWrapper(Node):
