@@ -30,6 +30,6 @@ Now you can build one more time and then run the wrapper and see the published m
 
 ```colcon build```
 
-```ros2 run pupil_labs_wrapper wrapper.py```
+```ros2 run pupil_labs_wrapper wrapper```
 
 
