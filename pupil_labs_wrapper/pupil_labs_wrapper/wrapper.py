@@ -4,11 +4,13 @@
 # print(sys.version)
 
 import rclpy
+
 # import pupil_labs
 from rclpy.node import Node
 from pupil_labs.realtime_api.simple import discover_one_device
 from egocentric_msg.msg import GazeData
 from sensor_msgs.msg import Image
+
 
 def populate_image_message(pl_image_msg, timestamp):
     ros_img = Image()
@@ -18,8 +20,9 @@ def populate_image_message(pl_image_msg, timestamp):
     ros_img.width = pl_image_msg.bgr_pixels.shape[1]
     ros_img.data = pl_image_msg.bgr_pixels.tobytes()
     # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
-    ros_img.encoding = "bgr8"  # or "rgb8" depending on your image format
+    ros_img.encoding = 'bgr8'  # or "rgb8" depending on your image format
     return ros_img
+
 
 def populate_sensor_message(pl_gaze_msg, timestamp):
     msg = GazeData()
@@ -46,22 +49,23 @@ def populate_sensor_message(pl_gaze_msg, timestamp):
     # print(msg)
     return msg
 
+
 class PupilLabsWrapper(Node):
     def __init__(self):
         super().__init__('pupil_labs_wrapper')
-        self.get_logger().info("Looking for the next best device...")
+        self.get_logger().info('Looking for the next best device...')
         self.device = discover_one_device(max_search_duration_seconds=10)
         if self.device is None:
-            self.get_logger().error("No device found.")
+            self.get_logger().error('No device found.')
             raise SystemExit(-1)
-        
-        self.get_logger().info(f"Connecting to {self.device}...")
-        
+
+        self.get_logger().info(f'Connecting to {self.device}...')
+
         # Setup publishers
         self.pub_gaze = self.create_publisher(GazeData, 'pupil_labs/gaze', 10)
         self.pub_rgb = self.create_publisher(Image, 'pupil_labs/scene_img', 10)
         self.pub_eyes = self.create_publisher(Image, 'pupil_labs/eye_img', 10)
-        
+
         self.timer = self.create_timer(1.0 / 30.0, self.publish_pupil_labs_data)
 
     def publish_pupil_labs_data(self):
@@ -75,7 +79,8 @@ class PupilLabsWrapper(Node):
             self.pub_rgb.publish(populate_image_message(pupil_labs_msg.scene, current_time))
             self.pub_eyes.publish(populate_image_message(pupil_labs_msg.eyes, current_time))
         except Exception as e:
-            self.get_logger().error(f"Error receiving or publishing data: {e}")
+            self.get_logger().error(f'Error receiving or publishing data: {e}')
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -89,7 +94,6 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
 
+
 if __name__ == '__main__':
     main()
-
-
