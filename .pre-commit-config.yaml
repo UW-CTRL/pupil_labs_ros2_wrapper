@@ -1,0 +1,7 @@
+# Formats staged Python files with ruff on every commit.
+# Enable once per clone with: pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.9
+    hooks:
+      - id: ruff-format

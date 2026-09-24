@@ -1,0 +1,9 @@
+# Python style for this repo. Matches ament_flake8, which `colcon test`
+# runs on ROS Python packages.
+line-length = 99
+
+[format]
+quote-style = "single"
+
+[lint]
+select = ["E", "W", "F", "Q"]
