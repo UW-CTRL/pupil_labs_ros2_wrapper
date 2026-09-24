@@ -8,7 +8,6 @@
   <maintainer email="kmsw8001@uw.edu">Kyshawn</maintainer>
   <license>Apache-2.0</license>
 
-  <buildtool_depend>ament_python</buildtool_depend>  <!-- Use ament_python for Python packages -->
   
   <build_depend>rclpy</build_depend>
   <depend>std_msgs</depend>
