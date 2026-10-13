@@ -7,6 +7,7 @@ import array
 import time
 import traceback
 
+import av
 import numpy as np
 import rclpy
 
@@ -15,7 +16,7 @@ from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from pupil_labs.realtime_api.simple import discover_one_device
 from egocentric_msg.msg import GazeData
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import CompressedImage, Image
 
 
 def populate_image_message(pl_image_msg, timestamp, frame_id):
@@ -36,6 +37,18 @@ def populate_image_message(pl_image_msg, timestamp, frame_id):
     # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
     ros_img.encoding = 'bgr8'  # or "rgb8" depending on your image format
     return ros_img
+
+
+def populate_compressed_image_message(jpeg, timestamp, frame_id):
+    msg = CompressedImage()
+    msg.header.stamp.sec = timestamp.sec
+    msg.header.stamp.nanosec = timestamp.nanosec
+    msg.header.frame_id = frame_id
+    msg.format = 'jpeg'
+    data = array.array('B')
+    data.frombytes(jpeg)
+    msg.data = data
+    return msg
 
 
 def populate_sensor_message(pl_gaze_msg, timestamp):
@@ -78,6 +91,11 @@ class PupilLabsWrapper(Node):
         # Setup publishers
         self.pub_gaze = self.create_publisher(GazeData, 'pupil_labs/gaze', 10)
         self.pub_rgb = self.create_publisher(Image, 'pupil_labs/scene_img', 10)
+        self.pub_rgb_compressed = self.create_publisher(
+            CompressedImage, 'pupil_labs/scene_img/compressed', 10
+        )
+        # Created on the first frame, once the scene image size is known
+        self.jpeg_encoder = None
         self.pub_eyes = self.create_publisher(Image, 'pupil_labs/eye_img', 10)
 
         self.got_first_frame = False
@@ -110,12 +128,36 @@ class PupilLabsWrapper(Node):
             self.pub_eyes.publish(
                 populate_image_message(pupil_labs_msg.eyes, current_time, 'pupil_eyes')
             )
+            # JPEG encoding takes ~20 ms per frame, so skip it when nobody listens
+            if self.pub_rgb_compressed.get_subscription_count() > 0:
+                self.pub_rgb_compressed.publish(
+                    populate_compressed_image_message(
+                        self.encode_jpeg(pupil_labs_msg.scene.bgr_pixels),
+                        current_time,
+                        'pupil_scene',
+                    )
+                )
             self.report_progress(pupil_labs_msg)
         except Exception as e:
             self.get_logger().error(
                 f'Error receiving or publishing data: {e}\n{traceback.format_exc()}',
                 throttle_duration_sec=2.0,
             )
+
+    def encode_jpeg(self, bgr_pixels):
+        height, width = bgr_pixels.shape[:2]
+        if self.jpeg_encoder is None:
+            # OpenCV can't be imported alongside the NumPy 2 the realtime API
+            # needs, so encode with PyAV, which the realtime API depends on
+            self.jpeg_encoder = av.CodecContext.create('mjpeg', 'w')
+            self.jpeg_encoder.width = width
+            self.jpeg_encoder.height = height
+            self.jpeg_encoder.pix_fmt = 'yuvj420p'
+            # 2 (best) to 31 (worst); 3 is about JPEG quality 90
+            self.jpeg_encoder.options = {'qscale': '3'}
+        frame = av.VideoFrame.from_ndarray(bgr_pixels, format='bgr24')
+        packets = self.jpeg_encoder.encode(frame.reformat(format='yuvj420p'))
+        return b''.join(bytes(packet) for packet in packets)
 
     def report_progress(self, pupil_labs_msg):
         self.frame_count += 1
