@@ -3,6 +3,9 @@
 # import sys
 # print(sys.version)
 
+import time
+import traceback
+
 import rclpy
 
 # import pupil_labs
@@ -69,6 +72,11 @@ class PupilLabsWrapper(Node):
         self.pub_rgb = self.create_publisher(Image, 'pupil_labs/scene_img', 10)
         self.pub_eyes = self.create_publisher(Image, 'pupil_labs/eye_img', 10)
 
+        self.got_first_frame = False
+        self.frame_count = 0
+        self.last_report_time = time.monotonic()
+        self.get_logger().info('Waiting for first matched scene/eye/gaze frame...')
+
         self.timer = self.create_timer(1.0 / 30.0, self.publish_pupil_labs_data)
 
     def publish_pupil_labs_data(self):
@@ -85,8 +93,27 @@ class PupilLabsWrapper(Node):
             self.pub_eyes.publish(
                 populate_image_message(pupil_labs_msg.eyes, current_time, 'pupil_eyes')
             )
+            self.report_progress(pupil_labs_msg)
         except Exception as e:
-            self.get_logger().error(f'Error receiving or publishing data: {e}')
+            self.get_logger().error(
+                f'Error receiving or publishing data: {e}\n{traceback.format_exc()}',
+                throttle_duration_sec=2.0,
+            )
+
+    def report_progress(self, pupil_labs_msg):
+        self.frame_count += 1
+        if not self.got_first_frame:
+            self.got_first_frame = True
+            self.get_logger().info(
+                f'First frame received: scene {pupil_labs_msg.scene.bgr_pixels.shape}, '
+                f'eyes {pupil_labs_msg.eyes.bgr_pixels.shape}'
+            )
+        now = time.monotonic()
+        elapsed = now - self.last_report_time
+        if elapsed >= 5.0:
+            self.get_logger().info(f'Publishing at {self.frame_count / elapsed:.1f} Hz')
+            self.frame_count = 0
+            self.last_report_time = now
 
 
 def main(args=None):
