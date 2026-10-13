@@ -7,9 +7,11 @@ import array
 import time
 import traceback
 
+import numpy as np
 import rclpy
 
 # import pupil_labs
+from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from pupil_labs.realtime_api.simple import discover_one_device
 from egocentric_msg.msg import GazeData
@@ -26,9 +28,10 @@ def populate_image_message(pl_image_msg, timestamp, frame_id):
     # Bytes per row; viewers and cv_bridge reject images with step = 0
     ros_img.step = ros_img.width * 3
     # Assign an array.array: rclpy checks a bytes value one byte at a time in
-    # Python, which takes ~750 ms for a scene frame and capped publishing at ~1 Hz
+    # Python, which takes ~750 ms for a scene frame and capped publishing at ~1 Hz.
+    # Copy straight from the pixel buffer, not via tobytes(), to copy only once.
     data = array.array('B')
-    data.frombytes(pl_image_msg.bgr_pixels.tobytes())
+    data.frombytes(np.ascontiguousarray(pl_image_msg.bgr_pixels))
     ros_img.data = data
     # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
     ros_img.encoding = 'bgr8'  # or "rgb8" depending on your image format
@@ -87,7 +90,16 @@ class PupilLabsWrapper(Node):
     def publish_pupil_labs_data(self):
         try:
             # Get data from device
-            pupil_labs_msg = self.device.receive_matched_scene_and_eyes_video_frames_and_gaze()
+            # Time out instead of blocking the executor forever if the stream stalls
+            pupil_labs_msg = self.device.receive_matched_scene_and_eyes_video_frames_and_gaze(
+                timeout_seconds=1.0
+            )
+            if pupil_labs_msg is None:
+                self.get_logger().warn(
+                    'No matched scene/eye/gaze frame in the last second',
+                    throttle_duration_sec=5.0,
+                )
+                return
             # Get current time for timestamp
             current_time = self.get_clock().now().to_msg()
             # Populate and publish messages
@@ -120,6 +132,12 @@ class PupilLabsWrapper(Node):
             self.frame_count = 0
             self.last_report_time = now
 
+    def destroy_node(self):
+        # The device streams on a non-daemon thread, which keeps the process
+        # alive after shutdown unless the device is closed
+        self.device.close()
+        super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -127,11 +145,11 @@ def main(args=None):
 
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        rclpy.try_shutdown()
 
 
 if __name__ == '__main__':
