@@ -12,12 +12,15 @@ from egocentric_msg.msg import GazeData
 from sensor_msgs.msg import Image
 
 
-def populate_image_message(pl_image_msg, timestamp):
+def populate_image_message(pl_image_msg, timestamp, frame_id):
     ros_img = Image()
     ros_img.header.stamp.sec = timestamp.sec
     ros_img.header.stamp.nanosec = timestamp.nanosec
+    ros_img.header.frame_id = frame_id
     ros_img.height = pl_image_msg.bgr_pixels.shape[0]
     ros_img.width = pl_image_msg.bgr_pixels.shape[1]
+    # Bytes per row; viewers and cv_bridge reject images with step = 0
+    ros_img.step = ros_img.width * 3
     ros_img.data = pl_image_msg.bgr_pixels.tobytes()
     # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
     ros_img.encoding = 'bgr8'  # or "rgb8" depending on your image format
@@ -76,8 +79,12 @@ class PupilLabsWrapper(Node):
             current_time = self.get_clock().now().to_msg()
             # Populate and publish messages
             self.pub_gaze.publish(populate_sensor_message(pupil_labs_msg.gaze, current_time))
-            self.pub_rgb.publish(populate_image_message(pupil_labs_msg.scene, current_time))
-            self.pub_eyes.publish(populate_image_message(pupil_labs_msg.eyes, current_time))
+            self.pub_rgb.publish(
+                populate_image_message(pupil_labs_msg.scene, current_time, 'pupil_scene')
+            )
+            self.pub_eyes.publish(
+                populate_image_message(pupil_labs_msg.eyes, current_time, 'pupil_eyes')
+            )
         except Exception as e:
             self.get_logger().error(f'Error receiving or publishing data: {e}')
 
