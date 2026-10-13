@@ -3,6 +3,7 @@
 # import sys
 # print(sys.version)
 
+import array
 import time
 import traceback
 
@@ -24,7 +25,11 @@ def populate_image_message(pl_image_msg, timestamp, frame_id):
     ros_img.width = pl_image_msg.bgr_pixels.shape[1]
     # Bytes per row; viewers and cv_bridge reject images with step = 0
     ros_img.step = ros_img.width * 3
-    ros_img.data = pl_image_msg.bgr_pixels.tobytes()
+    # Assign an array.array: rclpy checks a bytes value one byte at a time in
+    # Python, which takes ~750 ms for a scene frame and capped publishing at ~1 Hz
+    data = array.array('B')
+    data.frombytes(pl_image_msg.bgr_pixels.tobytes())
+    ros_img.data = data
     # Set the encoding (e.g., "bgr8" for OpenCV BGR images)
     ros_img.encoding = 'bgr8'  # or "rgb8" depending on your image format
     return ros_img
